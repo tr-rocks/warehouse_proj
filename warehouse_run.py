@@ -554,7 +554,7 @@ class Router:
                 if i < j:
 
                     # Order is this: location 1, location 2, cost # route_maker.lee_moore(warehouse_route, scratchpad, (3, 8), (3, 20), True)
-                    total_route_pairs.append((rand_locs_list[i], rand_locs_list[j], self.route_router.a_star(warehouse_route, scratchpad, rand_locs_list[i], rand_locs_list[j], wire=False)))
+                    total_route_pairs.append((rand_locs_list[i], rand_locs_list[j], self.route_router.lee_moore(warehouse_route, scratchpad, rand_locs_list[i], rand_locs_list[j], wire=False)))
                     
                     # Clear scratchpad
                     scratchpad = np.zeros_like(warehouse_route)
@@ -576,7 +576,7 @@ class Router:
 
         # Finally, route the path
         for i in range(len(unique_comb_to_use) - 1):
-            self.total_cost += self.route_router.a_star(warehouse_route, scratchpad, unique_comb_to_use[i], unique_comb_to_use[i + 1], wire=True)
+            self.total_cost += self.route_router.lee_moore(warehouse_route, scratchpad, unique_comb_to_use[i], unique_comb_to_use[i + 1], wire=True)
             scratchpad = np.zeros_like(warehouse_route)
 
         # print(total_routes)
