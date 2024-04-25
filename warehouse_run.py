@@ -12,6 +12,8 @@ import itertools
 import timeit
 import numpy as np
 
+np.set_printoptions(threshold=np.inf)
+
 # Object options
 FLOOR_OPT = 0
 WALL_OPT = 1
@@ -34,8 +36,8 @@ DARK_RED = (139, 0, 0)
 
 # Maze grid settings (editable) 
 NUM_PIXELS_EACH_CELL = 10 # Probably should be even
-NUM_BENCH_COLS = 10
-NUM_BENCH_ROWS = 10 # Do not do less than 2
+NUM_BENCH_COLS = 5
+NUM_BENCH_ROWS = 5 # Do not do less than 2
 NUM_CELLS_PER_X_BIN = 16 # Number of horizontal cells for each bin
 NUM_CELLS_PER_Y_BIN = 1 # Does not include bins on either side of bin
 NUM_CELLS_BETWEEN_BINS = 2
@@ -48,7 +50,7 @@ NORTH = 1
 EAST = 2
 SOUTH = 3
 WEST = 4
-ANY_DIR = 5
+NONE_DIR = 5
 GOAL = 6
 
 # Make the window fit everything (non-editable)
@@ -375,64 +377,89 @@ class RouteRouter:
 
 
     def a_star(self, route_array, scratchpad, point_src : tuple, point_dest : tuple, wire : bool):
+
+        print("Source: col: ", point_src[0], ", row: ", point_src[1])
+        print("Destin: col: ", point_dest[0], ", row: ", point_dest[1])
         
         cost_val = abs(point_dest[0] - point_src[0]) + abs(point_dest[1] - point_src[1])
         abs_cost = 0
         scratchpad_dir = np.zeros_like(scratchpad)
 
         # Find the direction we are going.
-        ver_dir = 0
-        hor_dir = 0
-
-        # X direction
-        if (point_dest[0] < point_src[0]):
-            hor_dir = WEST
-        elif (point_dest[0] > point_src[0]):
-            hor_dir = EAST
+        low_col_lim = 0
+        low_row_lim = 0
+        high_col_lim = 0
+        high_row_lim = 0
+        if (point_src[0] >= point_dest[0]):
+            low_col_lim = point_dest[0]
+            high_col_lim = point_src[0]
         else:
-            hor_dir = ANY_DIR
+            high_col_lim = point_dest[0]
+            low_col_lim = point_src[0]
 
-        # Y direction
-        if (point_dest[1] < point_src[1]):
-            ver_dir = NORTH
-        elif (point_dest[1] > point_dest[1]):
-            ver_dir = SOUTH
+        if (point_src[1] >= point_dest[1]):
+            low_row_lim = point_dest[1]
+            high_row_lim = point_src[1]
         else:
-            ver_dir = ANY_DIR
-
-        # if route_array[point_src[1]][point_src[0]] != 0:
-        #     print("Errors have occured")
-        #     print(route_array)
-        #     exit()
+            high_row_lim = point_dest[1]
+            low_row_lim = point_src[1]
 
 
         
         scratchpad[point_src[1]][point_src[0]] = cost_val
+        # scratchpad[5][3] = cost_val
 
         while scratchpad[point_dest[1]][point_dest[0]] == 0:
 
+            # Find when no moves have been taken
+            mv_cnt = 0
+
             # Find the next neighbour to fill
             # lm_check_move_to_neighbours(warehouse_cells, scratchpad, cnt_val, point_dest)
-            index1_list = np.where(scratchpad == (cnt_val - 1))[0]
+            # First find the rows where scratchpad is not empty
+            index1_list = np.where(scratchpad != 0)[0]
             # print(index1_list)
 
             for index1 in index1_list:
-                index2_list = np.where(scratchpad[index1] == (cnt_val - 1))[0]
+                # Find the columns where scratchpad is not empty
+                index2_list = np.where(scratchpad[index1] != 0)[0]
                 # print(index1)
                 # print(index2_list)
+                
 
                 for index2 in index2_list:
                     # print(index2)
                     
 
-                    if (warehouse_cells[index1 + 1][index2].type == 0 or (point_dest[0] == index2 and point_dest[1] == (index1 + 1))) and scratchpad[index1 + 1][index2] == 0:
-                        scratchpad[index1 + 1][index2] = cnt_val
-                    if (warehouse_cells[index1 - 1][index2].type == 0 or (point_dest[0] == index2 and point_dest[1] == (index1 - 1))) and scratchpad[index1 - 1][index2] == 0:
-                        scratchpad[index1 - 1][index2] = cnt_val
-                    if (warehouse_cells[index1][index2 + 1].type == 0 or (point_dest[0] == (index2 + 1) and point_dest[1] == (index1))) and scratchpad[index1][index2 + 1] == 0:
-                        scratchpad[index1][index2 + 1] = cnt_val
-                    if (warehouse_cells[index1][index2 - 1].type == 0 or (point_dest[0] == (index2 - 1) and point_dest[1] == (index1))) and scratchpad[index1][index2 - 1] == 0:
-                        scratchpad[index1][index2 - 1] = cnt_val
+                    if (warehouse_cells[index1 + 1][index2].type == 0 or (point_dest[0] == index2 and point_dest[1] == (index1 + 1))) and (scratchpad[index1 + 1][index2] == 0 and (index1 + 1) <= high_row_lim):
+                        scratchpad[index1 + 1][index2] = cost_val
+                        scratchpad_dir[index1 + 1][index2] = NORTH
+                        mv_cnt += 1
+                    if (warehouse_cells[index1 - 1][index2].type == 0 or (point_dest[0] == index2 and point_dest[1] == (index1 - 1))) and (scratchpad[index1 - 1][index2] == 0 and (index1 - 1) >= low_row_lim):
+                        scratchpad[index1 - 1][index2] = cost_val
+                        scratchpad_dir[index1 - 1][index2] = SOUTH
+                        mv_cnt += 1
+                    if (warehouse_cells[index1][index2 + 1].type == 0 or (point_dest[0] == (index2 + 1) and point_dest[1] == (index1))) and (scratchpad[index1][index2 + 1] == 0 and (index2 + 1) <= high_col_lim):
+                        scratchpad[index1][index2 + 1] = cost_val
+                        scratchpad_dir[index1][index2 + 1] = WEST
+                        mv_cnt += 1
+                    if (warehouse_cells[index1][index2 - 1].type == 0 or (point_dest[0] == (index2 - 1) and point_dest[1] == (index1))) and (scratchpad[index1][index2 - 1] == 0 and (index2 - 1) >= low_col_lim):
+                        scratchpad[index1][index2 - 1] = cost_val
+                        scratchpad_dir[index1][index2 - 1] = EAST
+                        mv_cnt += 1
+
+            # If no moves have been taken, increase the cost and the boundries
+            if mv_cnt == 0:
+                if (low_col_lim > 0):
+                    low_col_lim -= 1
+                if (high_col_lim < (scratchpad.shape[1] - 1)):
+                    high_col_lim += 1
+                if (low_row_lim > 0):
+                    low_row_lim -= 1
+                if (high_row_lim < (scratchpad.shape[0] - 1)):
+                    high_row_lim += 1
+
+                cost_val += 2
 
         abs_cost = scratchpad[point_dest[1]][point_dest[0]]
 
@@ -453,18 +480,22 @@ class RouteRouter:
                 # print("Cur point: ", cur_point, ", Point src: ", point_src)
 
                 # Find next neighbour
-                val_to_find = scratchpad[cur_point[1]][cur_point[0]] - 1
-                if (scratchpad[cur_point[1] + 1][cur_point[0]] == val_to_find):
-                    cur_point[1] += 1
-                elif (scratchpad[cur_point[1] - 1][cur_point[0]] == val_to_find):
-                    cur_point[1] -= 1
-                elif (scratchpad[cur_point[1]][cur_point[0] + 1] == val_to_find):
+                if (scratchpad_dir[cur_point[1]][cur_point[0]] == EAST):
                     cur_point[0] += 1
-                elif (scratchpad[cur_point[1]][cur_point[0] - 1] == val_to_find):
+                elif (scratchpad_dir[cur_point[1]][cur_point[0]] == WEST):
                     cur_point[0] -= 1
+                elif (scratchpad_dir[cur_point[1]][cur_point[0]] == SOUTH):
+                    cur_point[1] += 1
+                elif (scratchpad_dir[cur_point[1]][cur_point[0]] == NORTH):
+                    cur_point[1] -= 1
+                else:
+                    print("WARNING: No valid direction taken!!!!!! Current point: row: ", cur_point[1], ", col: ", cur_point[0])
+                    exit()
 
                 warehouse_cells[cur_point[1]][cur_point[0]].is_used = True
                 warehouse_cells[cur_point[1]][cur_point[0]].floor_color = color
+
+            print("Found current point!! HURRAH!!")
 
             return abs_cost
 
@@ -523,7 +554,7 @@ class Router:
                 if i < j:
 
                     # Order is this: location 1, location 2, cost # route_maker.lee_moore(warehouse_route, scratchpad, (3, 8), (3, 20), True)
-                    total_route_pairs.append((rand_locs_list[i], rand_locs_list[j], self.route_router.lee_moore(warehouse_route, scratchpad, rand_locs_list[i], rand_locs_list[j], wire=False)))
+                    total_route_pairs.append((rand_locs_list[i], rand_locs_list[j], self.route_router.a_star(warehouse_route, scratchpad, rand_locs_list[i], rand_locs_list[j], wire=False)))
                     
                     # Clear scratchpad
                     scratchpad = np.zeros_like(warehouse_route)
@@ -545,7 +576,7 @@ class Router:
 
         # Finally, route the path
         for i in range(len(unique_comb_to_use) - 1):
-            self.total_cost += self.route_router.lee_moore(warehouse_route, scratchpad, unique_comb_to_use[i], unique_comb_to_use[i + 1], wire=True)
+            self.total_cost += self.route_router.a_star(warehouse_route, scratchpad, unique_comb_to_use[i], unique_comb_to_use[i + 1], wire=True)
             scratchpad = np.zeros_like(warehouse_route)
 
         # print(total_routes)
@@ -688,15 +719,15 @@ def main():
     # Get random list of elements from locations list
     rand_locs_list = random.sample(locations_list, NUM_DEST_LOCATIONS)
 
-    # Draw the warehouse, clear scratchpad
-    draw_warehouse(window)
-    input("Press Enter to continue...")
+    # # Draw the warehouse, clear scratchpad
+    # draw_warehouse(window)
+    # input("Press Enter to continue...")
 
     # route_maker = RouteRouter()
     # route_maker.lee_moore(warehouse_route, scratchpad, (3, 8), (3, 20), True)
     router = Router()
     t_0 = timeit.default_timer()
-    router.min_span_tree(warehouse_route, beg_loc, rand_locs_list)
+    router.brute_force_method(warehouse_route, beg_loc, rand_locs_list)
     t_1 = timeit.default_timer()
     print("Cost: ", router.total_cost, ", Exec time: ", t_1 - t_0, " sec")
 
