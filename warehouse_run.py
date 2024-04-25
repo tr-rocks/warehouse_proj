@@ -43,6 +43,14 @@ TABLE_LOC_X_BEG = 3
 TABLE_LOC_X_END = 6
 NUM_DEST_LOCATIONS = 8
 
+# Dirs
+NORTH = 1
+EAST = 2
+SOUTH = 3
+WEST = 4
+ANY_DIR = 5
+GOAL = 6
+
 # Make the window fit everything (non-editable)
 BINS_ON_BENCH_SIDES = 2
 NUM_PAD_CELLS = 2
@@ -365,7 +373,113 @@ class RouteRouter:
 
         # First find the route and the cost in lee moore fashion
 
-        pass
+
+    def a_star(self, route_array, scratchpad, point_src : tuple, point_dest : tuple, wire : bool):
+        
+        cost_val = abs(point_dest[0] - point_src[0]) + abs(point_dest[1] - point_src[1])
+        abs_cost = 0
+        scratchpad_dir = np.zeros_like(scratchpad)
+
+        # Find the direction we are going.
+        ver_dir = 0
+        hor_dir = 0
+
+        # X direction
+        if (point_dest[0] < point_src[0]):
+            hor_dir = WEST
+        elif (point_dest[0] > point_src[0]):
+            hor_dir = EAST
+        else:
+            hor_dir = ANY_DIR
+
+        # Y direction
+        if (point_dest[1] < point_src[1]):
+            ver_dir = NORTH
+        elif (point_dest[1] > point_dest[1]):
+            ver_dir = SOUTH
+        else:
+            ver_dir = ANY_DIR
+
+        # if route_array[point_src[1]][point_src[0]] != 0:
+        #     print("Errors have occured")
+        #     print(route_array)
+        #     exit()
+
+
+        
+        scratchpad[point_src[1]][point_src[0]] = cost_val
+
+        while scratchpad[point_dest[1]][point_dest[0]] == 0:
+
+            # Find the next neighbour to fill
+            # lm_check_move_to_neighbours(warehouse_cells, scratchpad, cnt_val, point_dest)
+            index1_list = np.where(scratchpad == (cnt_val - 1))[0]
+            # print(index1_list)
+
+            for index1 in index1_list:
+                index2_list = np.where(scratchpad[index1] == (cnt_val - 1))[0]
+                # print(index1)
+                # print(index2_list)
+
+                for index2 in index2_list:
+                    # print(index2)
+                    
+
+                    if (warehouse_cells[index1 + 1][index2].type == 0 or (point_dest[0] == index2 and point_dest[1] == (index1 + 1))) and scratchpad[index1 + 1][index2] == 0:
+                        scratchpad[index1 + 1][index2] = cnt_val
+                    if (warehouse_cells[index1 - 1][index2].type == 0 or (point_dest[0] == index2 and point_dest[1] == (index1 - 1))) and scratchpad[index1 - 1][index2] == 0:
+                        scratchpad[index1 - 1][index2] = cnt_val
+                    if (warehouse_cells[index1][index2 + 1].type == 0 or (point_dest[0] == (index2 + 1) and point_dest[1] == (index1))) and scratchpad[index1][index2 + 1] == 0:
+                        scratchpad[index1][index2 + 1] = cnt_val
+                    if (warehouse_cells[index1][index2 - 1].type == 0 or (point_dest[0] == (index2 - 1) and point_dest[1] == (index1))) and scratchpad[index1][index2 - 1] == 0:
+                        scratchpad[index1][index2 - 1] = cnt_val
+
+        abs_cost = scratchpad[point_dest[1]][point_dest[0]]
+
+        if not wire:
+            
+            return abs_cost
+        
+        else:
+
+            # Here we wire it up (put values in warehouse_cells array)
+            color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+            cur_point = list(point_dest)
+
+            warehouse_cells[cur_point[1]][cur_point[0]].is_used = True
+            warehouse_cells[cur_point[1]][cur_point[0]].floor_color = color
+
+            while (cur_point[0] != point_src[0]) or (cur_point[1] != point_src[1]):
+                # print("Cur point: ", cur_point, ", Point src: ", point_src)
+
+                # Find next neighbour
+                val_to_find = scratchpad[cur_point[1]][cur_point[0]] - 1
+                if (scratchpad[cur_point[1] + 1][cur_point[0]] == val_to_find):
+                    cur_point[1] += 1
+                elif (scratchpad[cur_point[1] - 1][cur_point[0]] == val_to_find):
+                    cur_point[1] -= 1
+                elif (scratchpad[cur_point[1]][cur_point[0] + 1] == val_to_find):
+                    cur_point[0] += 1
+                elif (scratchpad[cur_point[1]][cur_point[0] - 1] == val_to_find):
+                    cur_point[0] -= 1
+
+                warehouse_cells[cur_point[1]][cur_point[0]].is_used = True
+                warehouse_cells[cur_point[1]][cur_point[0]].floor_color = color
+
+            return abs_cost
+
+
+
+            
+            # for war in scratchpad:
+            #     print("[", end = "")
+            #     for w in war:
+            #         print(w, ", ", end="")
+            #     print("]")
+
+            # exit()
+
+        # First find the route and the cost in lee moore fashion
 
     pass
 
@@ -439,6 +553,9 @@ class Router:
 
     def branch_and_bound(self, warehouse_route, beg_loc, rand_locs_list):
         
+        # Record the total cost
+        self.total_cost = 0
+        
         # Prepare scratchpad
         scratchpad = np.zeros_like(warehouse_route)
 
@@ -454,7 +571,7 @@ class Router:
             new_list.insert(0, beg_loc)
             new_list.append(beg_loc)
             unique_combinations.append(list(new_list))
-            print("new list: ", new_list)
+            # print("new list: ", new_list)
 
 
         # Now find the cost of every combination, even the beginning
@@ -478,10 +595,10 @@ class Router:
         list_of_costs = []
         for unique_comb in unique_combinations:
             cost = 0
-            print("Unique combo: ", unique_comb)
+            # print("Unique combo: ", unique_comb)
             for i in range(len(unique_comb) - 1):
-                print("Index: ", i, ", Comb: ", unique_comb[i], ", ", unique_comb[i + 1])
-                print("Total route pairs: ", total_route_pairs)
+                # print("Index: ", i, ", Comb: ", unique_comb[i], ", ", unique_comb[i + 1])
+                # print("Total route pairs: ", total_route_pairs)
                 element = next(filter(lambda x: ((x[0] == unique_comb[i] and x[1] == unique_comb[i + 1]) or (x[1] == unique_comb[i] and x[0] == unique_comb[i + 1])), total_route_pairs), None)
                 assert element != None
                 cost += element[2]
@@ -490,13 +607,13 @@ class Router:
 
         # Finally, route the path
         for i in range(len(unique_comb_to_use) - 1):
-            self.route_router.lee_moore(warehouse_route, scratchpad, unique_comb_to_use[i], unique_comb_to_use[i + 1], wire=True)
+            self.total_cost += self.route_router.lee_moore(warehouse_route, scratchpad, unique_comb_to_use[i], unique_comb_to_use[i + 1], wire=True)
             scratchpad = np.zeros_like(warehouse_route)
 
         # print(total_routes)
         pass
 
-    def nearest_neighbour(self, warehouse_route, beg_loc, rand_locs_list):
+    def min_span_tree(self, warehouse_route, beg_loc, rand_locs_list):
         self.total_cost = 0
         
         # Prepare scratchpad and find shortest route
@@ -573,12 +690,13 @@ def main():
 
     # Draw the warehouse, clear scratchpad
     draw_warehouse(window)
+    input("Press Enter to continue...")
 
     # route_maker = RouteRouter()
     # route_maker.lee_moore(warehouse_route, scratchpad, (3, 8), (3, 20), True)
     router = Router()
     t_0 = timeit.default_timer()
-    router.nearest_neighbour(warehouse_route, beg_loc, rand_locs_list)
+    router.min_span_tree(warehouse_route, beg_loc, rand_locs_list)
     t_1 = timeit.default_timer()
     print("Cost: ", router.total_cost, ", Exec time: ", t_1 - t_0, " sec")
 
